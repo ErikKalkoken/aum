@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS records (
+  id   INTEGER PRIMARY KEY,
+  uid  TEXT NOT NULL,
+  data  TEXT NOT NULL
+);
