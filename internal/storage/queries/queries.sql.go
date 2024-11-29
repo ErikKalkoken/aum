@@ -56,6 +56,7 @@ SELECT
   app_id, name
 FROM
   applications
+ORDER BY app_id
 `
 
 func (q *Queries) ListApplications(ctx context.Context) ([]Application, error) {

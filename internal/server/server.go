@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -15,7 +16,38 @@ import (
 func New(db *sql.DB, q *queries.Queries) http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("/create-report", handleCreateRecord(q))
+	// TODO: Add basic auth to status page
+	router.HandleFunc("/show-status", handleShowStatus(q))
 	return loggingMiddleware(router)
+}
+
+// TODO: Generate HTML pages from templates
+
+func handleShowStatus(q *queries.Queries) http.HandlerFunc {
+	ctx := context.Background()
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := func() error {
+			if r.Method != http.MethodGet {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return nil
+			}
+			apps, err := q.ListApplications(ctx)
+			if err != nil {
+				return err
+			}
+			html := "<table><tr><th>ID</th><th>Name</th></tr>\n"
+			for _, a := range apps {
+				html += fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", a.AppID, a.Name)
+			}
+			html += "</table>\n"
+			_, err = w.Write([]byte(html))
+			return err
+		}()
+		if err != nil {
+			slog.Error("show status", "error", err)
+			http.Error(w, "failed to show status page", http.StatusInternalServerError)
+		}
+	}
 }
 
 func handleCreateRecord(q *queries.Queries) http.HandlerFunc {

@@ -16,7 +16,8 @@ WHERE
 SELECT
   *
 FROM
-  applications;
+  applications
+ORDER BY app_id;
 
 -- name: UpdateOrCreateApplication :exec
 INSERT INTO
