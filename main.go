@@ -2,35 +2,39 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"context"
-	"database/sql"
-	_ "embed"
-
-	_ "github.com/mattn/go-sqlite3"
 
 	"example/telemetry/queries"
 )
-
-//go:embed schema.sql
-var ddl string
 
 type Payload struct {
 	UID  string
 	Data string
 }
 
+var portFlag = flag.Int("port", 8000, "port on which the server listens")
+
 func main() {
+	flag.Parse()
 	ctx := context.Background()
-	db, err := createDB(ctx)
+	db, err := createDB(ctx, "db.sqlite3")
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 	q := queries.New(db)
 
-	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
+	router := http.NewServeMux()
+	router.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -54,19 +58,28 @@ func main() {
 
 		w.WriteHeader(http.StatusCreated)
 	})
+	loggedRouter := loggingMiddleware(ctx, router)
 
-	if err := http.ListenAndServe(":8080", nil); err != http.ErrServerClosed {
-		log.Fatal(err)
+	serverAddress := fmt.Sprintf("localhost:%d", *portFlag)
+	server := &http.Server{
+		Addr:    serverAddress,
+		Handler: loggedRouter,
 	}
-}
+	go func() {
+		slog.Info("Web server started", "address", serverAddress)
+		if err := server.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatal("Web server terminated prematurely", "error", err)
+		}
+	}()
 
-func createDB(ctx context.Context) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "db.sqlite3")
-	if err != nil {
-		return nil, err
+	// Ensure graceful shutdown
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	<-sc
+
+	if err := server.Shutdown(ctx); err != nil {
+		slog.Error("Web server shutdown", "error", err)
+	} else {
+		slog.Info("Web server stopped")
 	}
-	if _, err := db.ExecContext(ctx, ddl); err != nil {
-		return nil, err
-	}
-	return db, nil
 }
