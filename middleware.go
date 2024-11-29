@@ -35,32 +35,31 @@ func (rw *responseWriter) WriteHeader(code int) {
 	return
 }
 
-// newLoggingMiddleware logs the incoming HTTP request & its duration.
-func newLoggingMiddleware(ctx context.Context) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if err := recover(); err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					slog.Error("Request panic",
-						"err", err,
-						"trace", debug.Stack(),
-					)
-				}
-			}()
+// loggingMiddleware logs the incoming HTTP request & its duration.
+func loggingMiddleware(next http.Handler) http.Handler {
+	ctx := context.Background()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				slog.Error("Request panic",
+					"err", err,
+					"trace", debug.Stack(),
+				)
+			}
+		}()
 
-			start := time.Now()
-			wrapped := wrapResponseWriter(w)
-			next.ServeHTTP(wrapped, r)
-			slog.Log(
-				ctx,
-				slog.LevelInfo,
-				"Request received",
-				"status", wrapped.status,
-				"method", r.Method,
-				"path", r.URL.EscapedPath(),
-				"duration", time.Since(start),
-			)
-		})
-	}
+		start := time.Now()
+		wrapped := wrapResponseWriter(w)
+		next.ServeHTTP(wrapped, r)
+		slog.Log(
+			ctx,
+			slog.LevelInfo,
+			"Request received",
+			"status", wrapped.status,
+			"method", r.Method,
+			"path", r.URL.EscapedPath(),
+			"duration", time.Since(start),
+		)
+	})
 }
