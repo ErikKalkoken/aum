@@ -60,12 +60,13 @@ func main() {
 
 		w.WriteHeader(http.StatusCreated)
 	})
-	routerWithMiddleware := loggingMiddleware(ctx, authMiddleware(*usernameFlag, *passwordFlag, router))
 
+	loggingMiddleware := newLoggingMiddleware(ctx)
+	authMiddleware := newAuthMiddleware(*usernameFlag, *passwordFlag)
 	serverAddress := fmt.Sprintf("localhost:%d", *portFlag)
 	server := &http.Server{
 		Addr:    serverAddress,
-		Handler: routerWithMiddleware,
+		Handler: loggingMiddleware(authMiddleware(router)),
 	}
 	go func() {
 		slog.Info("Web server started", "address", serverAddress)

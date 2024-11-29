@@ -1,3 +1,5 @@
 .temp/
 *.sqlite3
 .vscode/
+*.sqlite3-shm
+*.sqlite3-wal
