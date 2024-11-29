@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 //go:embed schema.sql
 var ddl string
 
-func createDB(ctx context.Context, dsn string) (*sql.DB, error) {
+func InitDB(ctx context.Context, dsn string) (*sql.DB, error) {
 	v := url.Values{}
 	v.Add("_fk", "on")
 	v.Add("_journal_mode", "WAL")

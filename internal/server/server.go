@@ -1,15 +1,18 @@
-package main
+package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
-	"example/telemetry/internal/model"
-	"example/telemetry/queries"
 	"log/slog"
 	"net/http"
+
+	"example/telemetry/internal/model"
+	"example/telemetry/internal/storage/queries"
 )
 
-func newServer(q *queries.Queries) http.Handler {
+func New(db *sql.DB) http.Handler {
+	q := queries.New(db)
 	router := http.NewServeMux()
 	router.HandleFunc("/create-report", handleCreateRecord(q))
 	return loggingMiddleware(router)

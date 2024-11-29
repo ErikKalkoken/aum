@@ -1,7 +1,8 @@
+// Collectsrv is a web service for collecting reports about application usage.
 package main
 
 import (
-	"example/telemetry/queries"
+	"context"
 	"flag"
 	"log"
 	"log/slog"
@@ -12,7 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"context"
+	"example/telemetry/internal/server"
+	"example/telemetry/internal/storage"
 )
 
 var portFlag = flag.String("port", "8000", "port on which the server listens")
@@ -29,14 +31,14 @@ func main() {
 func run(ctx context.Context, port string) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
-	db, err := createDB(ctx, "db.sqlite3")
+	db, err := storage.InitDB(ctx, "db.sqlite3")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort("localhost", port),
-		Handler: newServer(queries.New(db)),
+		Handler: server.New(db),
 	}
 	go func() {
 		slog.Info("server started", "listening", httpServer.Addr)
