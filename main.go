@@ -22,6 +22,8 @@ type Payload struct {
 }
 
 var portFlag = flag.Int("port", 8000, "port on which the server listens")
+var usernameFlag = flag.String("username", "app", "username for authenticating incoming requests")
+var passwordFlag = flag.String("password", "", "password for authenticating incoming requests")
 
 func main() {
 	flag.Parse()
@@ -58,12 +60,12 @@ func main() {
 
 		w.WriteHeader(http.StatusCreated)
 	})
-	loggedRouter := loggingMiddleware(ctx, router)
+	routerWithMiddleware := loggingMiddleware(ctx, authMiddleware(*usernameFlag, *passwordFlag, router))
 
 	serverAddress := fmt.Sprintf("localhost:%d", *portFlag)
 	server := &http.Server{
 		Addr:    serverAddress,
-		Handler: loggedRouter,
+		Handler: routerWithMiddleware,
 	}
 	go func() {
 		slog.Info("Web server started", "address", serverAddress)
