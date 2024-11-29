@@ -8,6 +8,11 @@ import (
 	"database/sql"
 )
 
+type Application struct {
+	AppID string
+	Name  string
+}
+
 type Report struct {
 	ID        int64
 	AppID     string

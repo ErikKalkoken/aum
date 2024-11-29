@@ -2,8 +2,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"net"
@@ -15,9 +17,11 @@ import (
 
 	"example/telemetry/internal/server"
 	"example/telemetry/internal/storage"
+	"example/telemetry/internal/storage/queries"
 )
 
 var portFlag = flag.String("port", "8000", "port on which the server listens")
+var createAppFlag = flag.Bool("create-app", false, "update or create app")
 
 func main() {
 	flag.Parse()
@@ -36,9 +40,15 @@ func run(ctx context.Context, port string) error {
 		log.Fatal(err)
 	}
 	defer db.Close()
+	q := queries.New(db)
+
+	if *createAppFlag {
+		return createApp(ctx, q)
+	}
+
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort("localhost", port),
-		Handler: server.New(db),
+		Handler: server.New(db, q),
 	}
 	go func() {
 		slog.Info("server started", "listening", httpServer.Addr)
@@ -46,6 +56,7 @@ func run(ctx context.Context, port string) error {
 			slog.Error("listening and serving", "error", err)
 		}
 	}()
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -61,5 +72,37 @@ func run(ctx context.Context, port string) error {
 		}
 	}()
 	wg.Wait()
+	return nil
+}
+
+func createApp(ctx context.Context, q *queries.Queries) error {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print("Enter the ID of the app: ")
+	scanner.Scan()
+	appID := scanner.Text()
+	fmt.Print("Enter the name of the app: ")
+	scanner.Scan()
+	name := scanner.Text()
+	found, err := storage.ApplicationExists(ctx, q, appID)
+	if err != nil {
+		return err
+	}
+	var msg string
+	if found {
+		msg = "Update existing app"
+	} else {
+		msg = "Create new app"
+	}
+	arg := queries.UpdateOrCreateApplicationParams{AppID: appID, Name: name}
+	fmt.Printf("App: %+v - %s? (y/N)? ", arg, msg)
+	var input string
+	fmt.Scan(&input)
+	if input != "y" {
+		return nil
+	}
+	if err := q.UpdateOrCreateApplication(ctx, arg); err != nil {
+		return err
+	}
+	fmt.Println("App created")
 	return nil
 }
