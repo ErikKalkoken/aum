@@ -9,20 +9,28 @@ import (
 	"context"
 )
 
-const createRecord = `-- name: CreateRecord :exec
-INSERT INTO records (
-  uid, data
-) VALUES (
-  ?, ?
-)
+const createReport = `-- name: CreateReport :exec
+INSERT INTO
+  reports (app_id, arch, machine_id, os, version)
+VALUES
+  (?, ?, ?, ?, ?)
 `
 
-type CreateRecordParams struct {
-	Uid  string
-	Data string
+type CreateReportParams struct {
+	AppID     string
+	Arch      string
+	MachineID string
+	Os        string
+	Version   string
 }
 
-func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) error {
-	_, err := q.db.ExecContext(ctx, createRecord, arg.Uid, arg.Data)
+func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) error {
+	_, err := q.db.ExecContext(ctx, createReport,
+		arg.AppID,
+		arg.Arch,
+		arg.MachineID,
+		arg.Os,
+		arg.Version,
+	)
 	return err
 }

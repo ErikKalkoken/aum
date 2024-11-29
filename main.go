@@ -13,17 +13,11 @@ import (
 
 	"context"
 
+	"example/telemetry/internal/model"
 	"example/telemetry/queries"
 )
 
-type Payload struct {
-	UID  string
-	Data string
-}
-
 var portFlag = flag.Int("port", 8000, "port on which the server listens")
-var usernameFlag = flag.String("username", "app", "username for authenticating incoming requests")
-var passwordFlag = flag.String("password", "", "password for authenticating incoming requests")
 
 func main() {
 	flag.Parse()
@@ -36,37 +30,40 @@ func main() {
 	q := queries.New(db)
 
 	router := http.NewServeMux()
-	router.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/create-report", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		report := &Payload{}
+		report := &model.ReportPayload{}
 		if err := json.NewDecoder(r.Body).Decode(report); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Println("got report:", report)
 
-		err := q.CreateRecord(ctx, queries.CreateRecordParams{
-			Uid:  report.UID,
-			Data: report.Data,
+		err := q.CreateReport(ctx, queries.CreateReportParams{
+			AppID:     report.AppID,
+			Arch:      report.Arch,
+			MachineID: report.MachineID,
+			Os:        report.OS,
+			Version:   report.Version,
 		})
 		if err != nil {
-			log.Fatal(err)
+			slog.Error("store report", "error", err)
+			http.Error(w, "failed to store report", http.StatusInternalServerError)
+			return
 		}
-		log.Println("saved report:", report)
+		slog.Info("report created", "report", report)
 
 		w.WriteHeader(http.StatusCreated)
 	})
 
 	loggingMiddleware := newLoggingMiddleware(ctx)
-	authMiddleware := newAuthMiddleware(*usernameFlag, *passwordFlag)
 	serverAddress := fmt.Sprintf("localhost:%d", *portFlag)
 	server := &http.Server{
 		Addr:    serverAddress,
-		Handler: loggingMiddleware(authMiddleware(router)),
+		Handler: loggingMiddleware(router),
 	}
 	go func() {
 		slog.Info("Web server started", "address", serverAddress)

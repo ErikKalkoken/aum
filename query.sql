@@ -1,6 +1,5 @@
--- name: CreateRecord :exec
-INSERT INTO records (
-  uid, data
-) VALUES (
-  ?, ?
-);
+-- name: CreateReport :exec
+INSERT INTO
+  reports (app_id, arch, machine_id, os, version)
+VALUES
+  (?, ?, ?, ?, ?);

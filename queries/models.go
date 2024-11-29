@@ -4,8 +4,11 @@
 
 package queries
 
-type Record struct {
-	ID   int64
-	Uid  string
-	Data string
+type Report struct {
+	ID        int64
+	AppID     string
+	Arch      string
+	MachineID string
+	Os        string
+	Version   string
 }
