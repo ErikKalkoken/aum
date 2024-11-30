@@ -1,0 +1,49 @@
+{{template "base.html" .}}
+
+{{define "title"}}Summary{{end}}
+
+{{define "content"}}
+
+<h1>Summary</h1>
+
+<h2>Applications</h2>
+
+<table class="table">
+    <tr>
+        <th>Name</th>
+        <th>Installations</th>
+        <th>Latest</th>
+    </tr>
+    {{range .Apps}}
+        <tr>
+            <td>{{.Application.Name}}</td>
+            <td>{{.UserCount}}</td>
+            <td>{{.Latest}}</td>
+        </tr>
+    {{end}}
+</table>
+
+<h2>Platforms</h2>
+
+<table class="table">
+    <tr>
+        <th>Name</th>
+        <th>Platform</th>
+        <th>Count</th>
+    </tr>
+    {{range $k, $v := .AppsWithPlatforms}}
+        <tr>
+            <td>{{$k}}</td>
+            <td></td>
+            <td></td>
+        </tr>
+        {{range $v}}
+        <tr>
+            <td></td>
+            <td>{{.Platform}}</td>
+            <td>{{.Count}}</td>
+        </tr>
+        {{end}}
+    {{end}}
+</table>
+{{end}}

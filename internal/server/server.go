@@ -28,7 +28,7 @@ func New(db *sql.DB, q *queries.Queries) http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("/create-report", handleCreateRecord(q))
 	// TODO: Add basic auth to status page
-	router.HandleFunc("/show-status", handleShowStatus(q))
+	router.HandleFunc("/summary", handleShowStatus(q))
 	return loggingMiddleware(router)
 }
 
@@ -64,15 +64,34 @@ func handleShowStatus(q *queries.Queries) http.HandlerFunc {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return nil
 			}
-			apps, err := q.ListApplications(ctx)
+			apps, err := q.ListApplicationsWithMetric(ctx)
 			if err != nil {
 				return err
 			}
-			t, ok := templates["status.html"]
-			if !ok {
-				return fmt.Errorf("status.html")
+			appMap := make(map[string]string)
+			for _, a := range apps {
+				appMap[a.Application.AppID] = a.Application.Name
 			}
-			t.Execute(w, apps)
+			appsWithPlatforms := make(map[string][]queries.ListApplicationPlatformsRow)
+			for id, name := range appMap {
+				x, err := q.ListApplicationPlatforms(ctx, id)
+				if err != nil {
+					return err
+				}
+				appsWithPlatforms[name] = x
+			}
+			data := struct {
+				Apps              []queries.ListApplicationsWithMetricRow
+				AppsWithPlatforms map[string][]queries.ListApplicationPlatformsRow
+			}{
+				apps,
+				appsWithPlatforms,
+			}
+			t, ok := templates["summary.html"]
+			if !ok {
+				return fmt.Errorf("summary.html")
+			}
+			t.Execute(w, data)
 			return err
 		}()
 		if err != nil {

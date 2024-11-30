@@ -12,12 +12,28 @@ FROM
 WHERE
   app_id = ?;
 
--- name: ListApplications :many
+-- name: ListApplicationsWithMetric :many
 SELECT
-  *
+  sqlc.embed(ap),
+  COUNT(DISTINCT(rp.machine_id)) as user_count,
+  MAX(rp.timestamp) as latest
 FROM
-  applications
-ORDER BY app_id;
+  applications ap
+  JOIN reports rp ON rp.app_id = ap.app_id
+GROUP BY
+  ap.app_id
+ORDER BY
+  ap.name;
+
+-- name: ListApplicationPlatforms :many
+SELECT
+  platform, COUNT(platform)
+FROM
+  reports_platforms
+WHERE
+  app_id = ?
+GROUP BY
+  platform;
 
 -- name: UpdateOrCreateApplication :exec
 INSERT INTO

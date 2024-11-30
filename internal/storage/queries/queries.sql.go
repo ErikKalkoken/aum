@@ -51,24 +51,80 @@ func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) erro
 	return err
 }
 
-const listApplications = `-- name: ListApplications :many
+const listApplicationPlatforms = `-- name: ListApplicationPlatforms :many
 SELECT
-  app_id, name
+  platform, COUNT(platform)
 FROM
-  applications
-ORDER BY app_id
+  reports_platforms
+WHERE
+  app_id = ?
+GROUP BY
+  platform
 `
 
-func (q *Queries) ListApplications(ctx context.Context) ([]Application, error) {
-	rows, err := q.db.QueryContext(ctx, listApplications)
+type ListApplicationPlatformsRow struct {
+	Platform interface{}
+	Count    int64
+}
+
+func (q *Queries) ListApplicationPlatforms(ctx context.Context, appID string) ([]ListApplicationPlatformsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listApplicationPlatforms, appID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Application
+	var items []ListApplicationPlatformsRow
 	for rows.Next() {
-		var i Application
-		if err := rows.Scan(&i.AppID, &i.Name); err != nil {
+		var i ListApplicationPlatformsRow
+		if err := rows.Scan(&i.Platform, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listApplicationsWithMetric = `-- name: ListApplicationsWithMetric :many
+SELECT
+  ap.app_id, ap.name,
+  COUNT(DISTINCT(rp.machine_id)) as user_count,
+  MAX(rp.timestamp) as latest
+FROM
+  applications ap
+  JOIN reports rp ON rp.app_id = ap.app_id
+GROUP BY
+  ap.app_id
+ORDER BY
+  ap.name
+`
+
+type ListApplicationsWithMetricRow struct {
+	Application Application
+	UserCount   int64
+	Latest      interface{}
+}
+
+func (q *Queries) ListApplicationsWithMetric(ctx context.Context) ([]ListApplicationsWithMetricRow, error) {
+	rows, err := q.db.QueryContext(ctx, listApplicationsWithMetric)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListApplicationsWithMetricRow
+	for rows.Next() {
+		var i ListApplicationsWithMetricRow
+		if err := rows.Scan(
+			&i.Application.AppID,
+			&i.Application.Name,
+			&i.UserCount,
+			&i.Latest,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

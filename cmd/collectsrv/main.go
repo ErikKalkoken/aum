@@ -6,7 +6,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -37,7 +36,7 @@ func run(ctx context.Context, port string) error {
 	defer cancel()
 	db, err := storage.InitDB(ctx, "db.sqlite3")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer db.Close()
 	q := queries.New(db)
@@ -51,7 +50,7 @@ func run(ctx context.Context, port string) error {
 		Handler: server.New(db, q),
 	}
 	if err := server.LoadTemplates(); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	go func() {
 		slog.Info("server started", "listening", httpServer.Addr)

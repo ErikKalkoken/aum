@@ -22,3 +22,9 @@ type Report struct {
 	Timestamp sql.NullTime
 	Version   string
 }
+
+type ReportsPlatform struct {
+	AppID    string
+	Name     string
+	Platform interface{}
+}

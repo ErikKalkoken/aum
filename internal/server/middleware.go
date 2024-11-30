@@ -17,7 +17,7 @@ type responseWriter struct {
 }
 
 func wrapResponseWriter(w http.ResponseWriter) *responseWriter {
-	return &responseWriter{ResponseWriter: w}
+	return &responseWriter{ResponseWriter: w, status: 200}
 }
 
 func (rw *responseWriter) Status() int {
