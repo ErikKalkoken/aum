@@ -3,8 +3,11 @@ package server
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
 
@@ -13,12 +16,42 @@ import (
 	"example/telemetry/internal/storage/queries"
 )
 
+var (
+	//go:embed templates/*
+	templatesFS embed.FS
+	templates   map[string]*template.Template
+)
+
+// New create a new web server and returns it's main handler.
 func New(db *sql.DB, q *queries.Queries) http.Handler {
+	templates = make(map[string]*template.Template)
 	router := http.NewServeMux()
 	router.HandleFunc("/create-report", handleCreateRecord(q))
 	// TODO: Add basic auth to status page
 	router.HandleFunc("/show-status", handleShowStatus(q))
 	return loggingMiddleware(router)
+}
+
+// LoadTemplates loads and parses all html templates.
+func LoadTemplates() error {
+	if templates == nil {
+		templates = make(map[string]*template.Template)
+	}
+	files, err := fs.ReadDir(templatesFS, "templates")
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		t, err := template.ParseFS(templatesFS, "templates/"+f.Name(), "templates/base.html")
+		if err != nil {
+			return err
+		}
+		templates[f.Name()] = t
+	}
+	return nil
 }
 
 // TODO: Generate HTML pages from templates
@@ -35,12 +68,11 @@ func handleShowStatus(q *queries.Queries) http.HandlerFunc {
 			if err != nil {
 				return err
 			}
-			html := "<table><tr><th>ID</th><th>Name</th></tr>\n"
-			for _, a := range apps {
-				html += fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", a.AppID, a.Name)
+			t, ok := templates["status.html"]
+			if !ok {
+				return fmt.Errorf("status.html")
 			}
-			html += "</table>\n"
-			_, err = w.Write([]byte(html))
+			t.Execute(w, apps)
 			return err
 		}()
 		if err != nil {

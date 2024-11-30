@@ -50,6 +50,9 @@ func run(ctx context.Context, port string) error {
 		Addr:    net.JoinHostPort("localhost", port),
 		Handler: server.New(db, q),
 	}
+	if err := server.LoadTemplates(); err != nil {
+		log.Fatal(err)
+	}
 	go func() {
 		slog.Info("server started", "listening", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
